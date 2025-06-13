@@ -4,6 +4,7 @@
 # Матрицы хранятся в виде векторов (списки). Комбинации хранятся аналогичным образом. Анализ разрешенных комбинаций
 # Размер длины информационного слова: 5
 
+from math import floor
 from pprint import pprint
 
 # G = [  # Порождающая матрица (выдаёт только d = 2, т.к матрица = склейка из двух единичных)
@@ -29,9 +30,11 @@ class Coder:
 
         self.info_bits_count = len(generator_matrix)  # Количество информационных битов (размерность единичный матрицы)
         self.check_matrix = self.generate_check_matrix(generator_matrix)  # Проверочная матрица
-        self.all_info_words = self.generate_all_info_words()  # Генерирует все возможные информационные слова
+        self.codeword_length = len(self.check_matrix[0])  # Длина закодированного слова
+        self.all_info_words = self.generate_all_info_words()  # Генерирует и кодирует все возможные инф.слова
         self.true_distance_value = self.calculate_code_distance()  # Истинное кодовое расстояние
-        print(self.true_distance_value)
+        self.error_correction_capacity = self.calculate_correction_capacity()  # Количество исправляемых ошибок
+        self.standard_array = self.build_standard_array()  # Таблица смежных классов
 
     # Создание проверочной матрицы из порождающей
     def generate_check_matrix(self, matrix):
@@ -53,7 +56,6 @@ class Coder:
             zero_row[row_index_check_matrix] = 1
             check_matrix[row_index_check_matrix] += zero_row
 
-        pprint(check_matrix)
         return check_matrix
 
     # Кодирование слова (кодирование с помощью уравнений)
@@ -107,6 +109,40 @@ class Coder:
                     true_code_distance = pairwise_code_distance
 
         return true_code_distance
+
+    # Вычисляет количество исправляемых ошибок t на основе кодового расстояния d
+    def calculate_correction_capacity(self):
+        return floor((self.true_distance_value - 1) / 2)
+
+    # Построение таблицы стандартного расположения
+    def build_standard_array(self):
+
+        # Каждая строка: сначала вектор ошибки (лидер), потом — смежные вектора
+        error_leaders = []
+
+        # 1 Построение вектора ошибки
+        for index in range(0, 2**self.codeword_length):
+            binary = format(index, f"0{self.codeword_length}b")
+            vector = [int(bit) for bit in binary]
+
+            if sum(vector) <= self.error_correction_capacity:
+                error_leaders.append([vector])
+
+        # 2 Применение вектора ошибки к кодовым словам
+        for position, error_vector in enumerate(error_leaders):
+            leader = error_vector[0]
+
+            for encoded_string in self.all_info_words:
+                coset_vector = []  # Смежный вектор
+
+                for index in range(len(leader)):
+                    xor_result = (leader[index] + encoded_string[index]) % 2
+
+                    coset_vector.append(xor_result)
+
+                error_leaders[position].append(coset_vector)
+
+        return error_leaders
 
 
 def main(info_bits_count):
