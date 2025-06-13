@@ -36,6 +36,9 @@ class Coder:
         self.error_correction_capacity = self.calculate_correction_capacity()  # Количество исправляемых ошибок
         self.standard_array = self.build_standard_array()  # Таблица смежных классов
 
+        # Test
+        self.decode_by_standard_array(self.all_info_words[5])
+
     # Создание проверочной матрицы из порождающей
     def generate_check_matrix(self, matrix):
 
@@ -114,7 +117,7 @@ class Coder:
     def calculate_correction_capacity(self):
         return floor((self.true_distance_value - 1) / 2)
 
-    # Построение таблицы стандартного расположения
+    # Построение таблицы смежных классов
     def build_standard_array(self):
 
         # Каждая строка: сначала вектор ошибки (лидер), потом — смежные вектора
@@ -143,6 +146,32 @@ class Coder:
                 error_leaders[position].append(coset_vector)
 
         return error_leaders
+
+    # Декодер по таблице смежных классов
+    def decode_by_standard_array(self, decoded_input):
+
+        # Проверка векторов на схожесть (не использую готовые функции по типу list1 == list2 в целях унификации алгоритмов с С++ версией)
+        def are_lists_equal(list1, list2):
+            for index in range(len(list1)):
+                if list1[index] != list2[index]:
+                    return False
+
+            return True
+
+        for coset_index, coset_table in enumerate(self.standard_array):
+            for word_idx in range(1, len(coset_table)):
+                if sum(coset_table[word_idx]) == sum(decoded_input):
+                    if are_lists_equal(coset_table[word_idx], decoded_input) == True:
+                        error_vector = coset_table[0]
+                        decoded_word = []  # Декодированная комбинация
+
+                        print(f"Combination: {decoded_input}")
+                        print(f"ErrorVector: {error_vector}\n")
+
+                        for index in range(len(decoded_input)):
+                            decoded_word.append((decoded_input[index] + error_vector[index]) % 2)
+
+                        print(f"Декодированная комбинация: {decoded_word}\n")
 
 
 def main(info_bits_count):
