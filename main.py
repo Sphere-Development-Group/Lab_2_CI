@@ -4,12 +4,22 @@
 # Матрицы хранятся в виде векторов (списки). Комбинации хранятся аналогичным образом. Анализ разрешенных комбинаций
 # Размер длины информационного слова: 5
 
-G = [  # Порождающая матрица
-    [1, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-    [0, 1, 0, 0, 0, 0, 1, 0, 0, 0],
-    [0, 0, 1, 0, 0, 0, 0, 1, 0, 0],
-    [0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
-    [0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+from pprint import pprint
+
+# G = [  # Порождающая матрица (выдаёт только d = 2, т.к матрица = склейка из двух единичных)
+#     [1, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+#     [0, 1, 0, 0, 0, 0, 1, 0, 0, 0],
+#     [0, 0, 1, 0, 0, 0, 0, 1, 0, 0],
+#     [0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+#     [0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+# ]
+
+G = [
+    [1, 0, 0, 0, 0, 1, 1, 0, 1, 0],
+    [0, 1, 0, 0, 0, 0, 1, 1, 1, 1],
+    [0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+    [0, 0, 0, 1, 0, 1, 0, 1, 1, 0],
+    [0, 0, 0, 0, 1, 1, 1, 0, 0, 1],
 ]
 
 
@@ -19,22 +29,21 @@ class Coder:
 
         self.info_bits_count = len(generator_matrix)  # Количество информационных битов (размерность единичный матрицы)
         self.check_matrix = self.generate_check_matrix(generator_matrix)  # Проверочная матрица
-        self.code_distance = self.calculate_code_distance(self.info_bits_count)
-        pass
+        self.all_info_words = self.generate_all_info_words()  # Генерирует все возможные информационные слова
+        self.true_distance_value = self.calculate_code_distance()  # Истинное кодовое расстояние
+        print(self.true_distance_value)
 
     # Создание проверочной матрицы из порождающей
     def generate_check_matrix(self, matrix):
 
         check_matrix = []  # Проверочная матрица
-
-        for index, string in enumerate(matrix):
-            matrix[index] = string[self.info_bits_count :]
+        q_matrix = [row[self.info_bits_count :] for row in matrix]
 
         # Транспонируем матрицу Q
-        for column_index in range(len(matrix[0])):
+        for column_index in range(len(q_matrix[0])):
             temp_row = []  # Временный список для хранения транспонированной строки
-            for row_index in range(len(matrix)):
-                temp_row.append(matrix[row_index][column_index])
+            for row_index in range(len(q_matrix)):
+                temp_row.append(q_matrix[row_index][column_index])
 
             check_matrix.append(temp_row)
 
@@ -44,17 +53,60 @@ class Coder:
             zero_row[row_index_check_matrix] = 1
             check_matrix[row_index_check_matrix] += zero_row
 
+        pprint(check_matrix)
         return check_matrix
 
-    # Определение истинного кодового расстояния
-    def calculate_code_distance(self):
+    # Кодирование слова (кодирование с помощью уравнений)
+    def encode_data(self, codeword):
+
+        redundantPart = []
+
+        for row_index in range(len(self.check_matrix)):
+
+            bitsToSum = []
+
+            for column_index in range(self.info_bits_count):
+                if self.check_matrix[row_index][column_index] > 0:
+                    bitsToSum.append(codeword[column_index])
+
+            redundantPart.append(sum(bitsToSum) % 2)
+
+        return codeword + redundantPart
+
+    # Генерирует все возможные информационные слова + кодирует их
+    def generate_all_info_words(self):
 
         combinations = []
 
         while len(combinations) < 2**5:
             array = list(bin(len(combinations))[2:])
             element = list(map(lambda block: int(block), array))
-            combinations.append([0] * (self.info_bits_count - len(element)) + element)
+            combinations.append(self.encode_data([0] * (self.info_bits_count - len(element)) + element))
+
+        return combinations
+
+    # Определение истинного кодового расстояния O(n^2)
+    def calculate_code_distance(self):
+        true_code_distance = None
+
+        for first_row_index in range(len(self.all_info_words)):
+
+            first_row_to_compare = self.all_info_words[first_row_index]
+
+            for second_row_index in range(first_row_index + 1, len(self.all_info_words)):
+
+                pairwise_code_distance = 0
+                second_row_to_compare = self.all_info_words[second_row_index]
+
+                for index in range(len(self.all_info_words[second_row_index])):
+
+                    if first_row_to_compare[index] != second_row_to_compare[index]:
+                        pairwise_code_distance += 1
+
+                if true_code_distance is None or pairwise_code_distance < true_code_distance:
+                    true_code_distance = pairwise_code_distance
+
+        return true_code_distance
 
 
 def main(info_bits_count):
